@@ -21,8 +21,14 @@ export async function searchCitybusRoutes(route: string): Promise<RouteChoice[]>
   const routeJson = await routeRes.json()
   const routeStopJson = await routeStopRes.json()
 
-  const routeList = asArray<any>(routeJson.data)
-  const routeStopList = asArray<any>(routeStopJson.data)
+  const rawRouteData = routeJson?.data
+  const routeList = Array.isArray(rawRouteData)
+    ? rawRouteData
+    : rawRouteData
+      ? [rawRouteData]
+      : []
+
+  const routeStopList = asArray<any>(routeStopJson?.data)
 
   const stopGroups = new Map<string, number>()
   for (const item of routeStopList) {
@@ -34,8 +40,8 @@ export async function searchCitybusRoutes(route: string): Promise<RouteChoice[]>
     route: item.route,
     bound: item.bound,
     serviceType: String(item.service_type ?? '1'),
-    destination: item.dest_tc,
-    origin: item.orig_tc
+    destination: item.dest_tc ?? item.dest_en ?? '',
+    origin: item.orig_tc ?? item.orig_en ?? ''
   }))
 }
 
@@ -52,8 +58,8 @@ export async function getCitybusStops(
   const routeStopJson = await routeStopRes.json()
   const stopJson = await stopRes.json()
 
-  const routeStopList = asArray<any>(routeStopJson.data)
-  const stopList = asArray<any>(stopJson.data)
+  const routeStopList = asArray<any>(routeStopJson?.data)
+  const stopList = asArray<any>(stopJson?.data)
 
   const stopMap = new Map<string, CitybusStopLookup>(
     stopList.map((stop: any) => [stop.stop, stop])
@@ -74,7 +80,7 @@ export async function getCitybusStops(
 export async function getCitybusEta(stopId: string, route: string): Promise<EtaItem[]> {
   const res = await fetch(`${BASE}/eta/CTB/${stopId}/${route}`)
   const json = await res.json()
-  const etaList = asArray<any>(json.data)
+  const etaList = asArray<any>(json?.data)
 
   return etaList.slice(0, 3).map((item: any) => ({
     eta: item.eta ?? null,
