@@ -2,6 +2,12 @@ import type { EtaItem, RouteChoice, StopInfo } from '../types'
 
 const BASE = 'https://rt.data.gov.hk/v2/transport/citybus'
 
+type CitybusStopLookup = {
+  stop: string
+  name_tc?: string
+  name_en?: string
+}
+
 export async function searchCitybusRoutes(route: string): Promise<RouteChoice[]> {
   const [routeRes, routeStopRes] = await Promise.all([
     fetch(`${BASE}/route/CTB/${route}`),
@@ -27,22 +33,31 @@ export async function searchCitybusRoutes(route: string): Promise<RouteChoice[]>
   }))
 }
 
-export async function getCitybusStops(route: string, bound: string, serviceType: string): Promise<StopInfo[]> {
+export async function getCitybusStops(
+  route: string,
+  bound: string,
+  serviceType: string
+): Promise<StopInfo[]> {
   const [routeStopRes, stopRes] = await Promise.all([
     fetch(`${BASE}/route-stop/CTB/${route}/${bound}/${serviceType}`),
     fetch(`${BASE}/stop`)
   ])
+
   const routeStopJson = await routeStopRes.json()
   const stopJson = await stopRes.json()
-  const stopMap = new Map((stopJson.data ?? []).map((stop: any) => [stop.stop, stop]))
+
+  const stopMap = new Map<string, CitybusStopLookup>(
+    (stopJson.data ?? []).map((stop: any) => [stop.stop, stop])
+  )
 
   return (routeStopJson.data ?? []).map((item: any) => {
-    const stop = stopMap.get(item.stop) || {}
+    const stop = stopMap.get(item.stop)
+
     return {
       stopId: item.stop,
       sequence: item.seq,
-      nameTc: stop.name_tc ?? item.stop,
-      nameEn: stop.name_en ?? item.stop
+      nameTc: stop?.name_tc ?? item.stop,
+      nameEn: stop?.name_en ?? item.stop
     }
   })
 }
@@ -50,6 +65,7 @@ export async function getCitybusStops(route: string, bound: string, serviceType:
 export async function getCitybusEta(stopId: string, route: string): Promise<EtaItem[]> {
   const res = await fetch(`${BASE}/eta/CTB/${stopId}/${route}`)
   const json = await res.json()
+
   return (json.data ?? []).slice(0, 3).map((item: any) => ({
     eta: item.eta ?? null,
     destination: item.dest_tc ?? item.dest_en ?? route,
