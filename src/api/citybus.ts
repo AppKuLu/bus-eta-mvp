@@ -8,6 +8,10 @@ type CitybusStopLookup = {
   name_en?: string
 }
 
+function asArray<T>(value: unknown): T[] {
+  return Array.isArray(value) ? value : []
+}
+
 export async function searchCitybusRoutes(route: string): Promise<RouteChoice[]> {
   const [routeRes, routeStopRes] = await Promise.all([
     fetch(`${BASE}/route/CTB/${route}`),
@@ -17,19 +21,21 @@ export async function searchCitybusRoutes(route: string): Promise<RouteChoice[]>
   const routeJson = await routeRes.json()
   const routeStopJson = await routeStopRes.json()
 
+  const routeList = asArray<any>(routeJson.data)
+  const routeStopList = asArray<any>(routeStopJson.data)
+
   const stopGroups = new Map<string, number>()
-  for (const item of routeStopJson.data ?? []) {
+  for (const item of routeStopList) {
     const key = `${item.bound}-${item.service_type}`
     stopGroups.set(key, (stopGroups.get(key) ?? 0) + 1)
   }
 
-  return (routeJson.data ?? []).map((item: any) => ({
+  return routeList.map((item: any) => ({
     route: item.route,
     bound: item.bound,
     serviceType: String(item.service_type ?? '1'),
     destination: item.dest_tc,
-    origin: item.orig_tc,
-    stopCount: stopGroups.get(`${item.bound}-${item.service_type}`) ?? 0
+    origin: item.orig_tc
   }))
 }
 
@@ -46,11 +52,14 @@ export async function getCitybusStops(
   const routeStopJson = await routeStopRes.json()
   const stopJson = await stopRes.json()
 
+  const routeStopList = asArray<any>(routeStopJson.data)
+  const stopList = asArray<any>(stopJson.data)
+
   const stopMap = new Map<string, CitybusStopLookup>(
-    (stopJson.data ?? []).map((stop: any) => [stop.stop, stop])
+    stopList.map((stop: any) => [stop.stop, stop])
   )
 
-  return (routeStopJson.data ?? []).map((item: any) => {
+  return routeStopList.map((item: any) => {
     const stop = stopMap.get(item.stop)
 
     return {
@@ -65,8 +74,9 @@ export async function getCitybusStops(
 export async function getCitybusEta(stopId: string, route: string): Promise<EtaItem[]> {
   const res = await fetch(`${BASE}/eta/CTB/${stopId}/${route}`)
   const json = await res.json()
+  const etaList = asArray<any>(json.data)
 
-  return (json.data ?? []).slice(0, 3).map((item: any) => ({
+  return etaList.slice(0, 3).map((item: any) => ({
     eta: item.eta ?? null,
     destination: item.dest_tc ?? item.dest_en ?? route,
     remark: item.rmk_tc ?? item.rmk_en ?? '',

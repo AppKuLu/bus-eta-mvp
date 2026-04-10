@@ -8,11 +8,16 @@ type KmbStopLookup = {
   name_en?: string
 }
 
+function asArray<T>(value: unknown): T[] {
+  return Array.isArray(value) ? value : []
+}
+
 export async function searchKmbRoutes(route: string): Promise<RouteChoice[]> {
   const res = await fetch(`${BASE}/route/`)
   const json = await res.json()
+  const routeList = asArray<any>(json.data)
 
-  return (json.data ?? [])
+  return routeList
     .filter((item: any) => item.route?.toUpperCase() === route.toUpperCase())
     .map((item: any) => ({
       route: item.route,
@@ -36,11 +41,14 @@ export async function getKmbStops(
   const routeStopJson = await routeStopRes.json()
   const stopJson = await stopRes.json()
 
+  const routeStopList = asArray<any>(routeStopJson.data)
+  const stopList = asArray<any>(stopJson.data)
+
   const stopMap = new Map<string, KmbStopLookup>(
-    (stopJson.data ?? []).map((stop: any) => [stop.stop, stop])
+    stopList.map((stop: any) => [stop.stop, stop])
   )
 
-  return (routeStopJson.data ?? []).map((item: any) => {
+  return routeStopList.map((item: any) => {
     const stop = stopMap.get(item.stop)
 
     return {
@@ -59,8 +67,9 @@ export async function getKmbEta(
 ): Promise<EtaItem[]> {
   const res = await fetch(`${BASE}/eta/${stopId}/${route}/${serviceType}`)
   const json = await res.json()
+  const etaList = asArray<any>(json.data)
 
-  return (json.data ?? []).slice(0, 3).map((item: any) => ({
+  return etaList.slice(0, 3).map((item: any) => ({
     eta: item.eta ?? null,
     destination: item.dest_tc ?? item.dest_en ?? route,
     remark: item.rmk_tc ?? item.rmk_en ?? '',
