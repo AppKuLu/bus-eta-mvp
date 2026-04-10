@@ -12,14 +12,21 @@ function asArray<T>(value: unknown): T[] {
   return Array.isArray(value) ? value : []
 }
 
-export async function searchCitybusRoutes(route: string): Promise<RouteChoice[]> {
-  const [routeRes, routeStopRes] = await Promise.all([
-    fetch(`${BASE}/route/CTB/${route}`),
-    fetch(`${BASE}/route-stop/CTB/${route}`)
-  ])
+async function getJson(url: string) {
+  const res = await fetch(url)
+  const json = await res.json()
+  console.log('[CTB API]', url, json)
 
-  const routeJson = await routeRes.json()
-  const routeStopJson = await routeStopRes.json()
+  if (!res.ok) {
+    throw new Error(`Citybus API error: ${res.status}`)
+  }
+
+  return json
+}
+
+export async function searchCitybusRoutes(route: string): Promise<RouteChoice[]> {
+  const routeJson = await getJson(`${BASE}/route/CTB/${route}`)
+  const routeStopJson = await getJson(`${BASE}/route-stop/CTB/${route}`)
 
   const rawRouteData = routeJson?.data
   const routeList = Array.isArray(rawRouteData)
@@ -50,13 +57,8 @@ export async function getCitybusStops(
   bound: string,
   serviceType: string
 ): Promise<StopInfo[]> {
-  const [routeStopRes, stopRes] = await Promise.all([
-    fetch(`${BASE}/route-stop/CTB/${route}/${bound}/${serviceType}`),
-    fetch(`${BASE}/stop`)
-  ])
-
-  const routeStopJson = await routeStopRes.json()
-  const stopJson = await stopRes.json()
+  const routeStopJson = await getJson(`${BASE}/route-stop/CTB/${route}/${bound}/${serviceType}`)
+  const stopJson = await getJson(`${BASE}/stop`)
 
   const routeStopList = asArray<any>(routeStopJson?.data)
   const stopList = asArray<any>(stopJson?.data)
@@ -78,8 +80,7 @@ export async function getCitybusStops(
 }
 
 export async function getCitybusEta(stopId: string, route: string): Promise<EtaItem[]> {
-  const res = await fetch(`${BASE}/eta/CTB/${stopId}/${route}`)
-  const json = await res.json()
+  const json = await getJson(`${BASE}/eta/CTB/${stopId}/${route}`)
   const etaList = asArray<any>(json?.data)
 
   return etaList.slice(0, 3).map((item: any) => ({

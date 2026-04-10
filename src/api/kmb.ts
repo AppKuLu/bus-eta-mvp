@@ -12,9 +12,20 @@ function asArray<T>(value: unknown): T[] {
   return Array.isArray(value) ? value : []
 }
 
-export async function searchKmbRoutes(route: string): Promise<RouteChoice[]> {
-  const res = await fetch(`${BASE}/route/`)
+async function getJson(url: string) {
+  const res = await fetch(url)
   const json = await res.json()
+  console.log('[KMB API]', url, json)
+
+  if (!res.ok) {
+    throw new Error(`KMB API error: ${res.status}`)
+  }
+
+  return json
+}
+
+export async function searchKmbRoutes(route: string): Promise<RouteChoice[]> {
+  const json = await getJson(`${BASE}/route/`)
   const routeList = asArray<any>(json?.data)
 
   return routeList
@@ -33,13 +44,8 @@ export async function getKmbStops(
   bound: string,
   serviceType: string
 ): Promise<StopInfo[]> {
-  const [routeStopRes, stopRes] = await Promise.all([
-    fetch(`${BASE}/route-stop/${route}/${bound}/${serviceType}`),
-    fetch(`${BASE}/stop`)
-  ])
-
-  const routeStopJson = await routeStopRes.json()
-  const stopJson = await stopRes.json()
+  const routeStopJson = await getJson(`${BASE}/route-stop/${route}/${bound}/${serviceType}`)
+  const stopJson = await getJson(`${BASE}/stop`)
 
   const routeStopList = asArray<any>(routeStopJson?.data)
   const stopList = asArray<any>(stopJson?.data)
@@ -65,8 +71,7 @@ export async function getKmbEta(
   route: string,
   serviceType: string
 ): Promise<EtaItem[]> {
-  const res = await fetch(`${BASE}/eta/${stopId}/${route}/${serviceType}`)
-  const json = await res.json()
+  const json = await getJson(`${BASE}/eta/${stopId}/${route}/${serviceType}`)
   const etaList = asArray<any>(json?.data)
 
   return etaList.slice(0, 3).map((item: any) => ({
