@@ -2,14 +2,17 @@ import type { EtaItem, RouteChoice, StopInfo } from '../types'
 
 const BASE = 'https://data.etabus.gov.hk/v1/transport/kmb'
 
-type KmbStopLookup = {
-  stop: string
-  name_tc?: string
-  name_en?: string
-}
-
 function asArray<T>(value: unknown): T[] {
   return Array.isArray(value) ? value : []
+}
+
+function normalizeKmbDirection(bound: string): string {
+  const value = String(bound).toUpperCase()
+
+  if (value === 'O') return 'outbound'
+  if (value === 'I') return 'inbound'
+
+  return bound
 }
 
 async function getJson(url: string) {
@@ -19,14 +22,13 @@ async function getJson(url: string) {
   console.log('[KMB API]', url, json)
 
   if (!res.ok) {
-    throw new Error(`KMB API error: ${res.status}`)
+    throw new Error(json?.message || `KMB API error: ${res.status}`)
   }
 
   return json
 }
 
 export async function searchKmbRoutes(route: string): Promise<RouteChoice[]> {
-  // 官方 /route/ endpoint 會回傳全路線清單，這裡用 filter 搵你要的 route。[page:2]
   const json = await getJson(`${BASE}/route/`)
   const routeList = asArray<any>(json?.data)
 
@@ -46,41 +48,26 @@ export async function getKmbStops(
   bound: string,
   serviceType: string
 ): Promise<StopInfo[]> {
-  // KMB route-stop  endpoint: /route-stop/{route}/{direction}/{service_type}[web:6]
-  const routeStopUrl = `${BASE}/route-stop/${route}/${bound}/${serviceType}`
+  const direction = normalizeKmbDirection(bound)
+  const routeStopUrl = `${BASE}/route-stop/${route}/${direction}/${serviceType}`
 
   console.log('[KMB route-stop params]', {
     route,
     bound,
+    direction,
     serviceType,
     routeStopUrl
   })
 
-  const [routeStopJson, stopJson] = await Promise.all([
-    getJson(routeStopUrl),
-    getJson(`${BASE}/stop`)
-  ])
-
-  console.log('[KMB route-stop response]', routeStopJson)
-  console.log('[KMB stop response]', stopJson)
-
+  const routeStopJson = await getJson(routeStopUrl)
   const routeStopList = asArray<any>(routeStopJson?.data)
-  const stopList = asArray<any>(stopJson?.data)
 
-  const stopMap = new Map<string, KmbStopLookup>(
-    stopList.map((stop: any) => [stop.stop, stop])
-  )
-
-  return routeStopList.map((item: any) => {
-    const stop = stopMap.get(item.stop)
-
-    return {
-      stopId: item.stop,
-      sequence: item.seq,
-      nameTc: stop?.name_tc ?? item.stop,
-      nameEn: stop?.name_en ?? item.stop
-    }
-  })
+  return routeStopList.map((item: any, index: number) => ({
+    stopId: item.stop ?? `kmb-${index}`,
+    sequence: item.seq,
+    nameTc: item.name_tc ?? item.stop ?? `站點 ${index + 1}`,
+    nameEn: item.name_en ?? item.stop ?? `Stop ${index + 1}`
+  }))
 }
 
 export async function getKmbEta(
@@ -88,7 +75,6 @@ export async function getKmbEta(
   route: string,
   serviceType: string
 ): Promise<EtaItem[]> {
-  // KMB ETA endpoint: /eta/{stop_id}/{route}/{service_type}[web:9][web:179]
   const json = await getJson(`${BASE}/eta/${stopId}/${route}/${serviceType}`)
   const etaList = asArray<any>(json?.data)
 

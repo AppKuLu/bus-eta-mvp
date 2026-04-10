@@ -2,12 +2,6 @@ import type { EtaItem, RouteChoice, StopInfo } from '../types'
 
 const BASE = 'https://rt.data.gov.hk/v2/transport/citybus'
 
-type CitybusStopLookup = {
-  stop: string
-  name_tc?: string
-  name_en?: string
-}
-
 function asArray<T>(value: unknown): T[] {
   return Array.isArray(value) ? value : []
 }
@@ -19,7 +13,7 @@ async function getJson(url: string) {
   console.log('[CTB API]', url, json)
 
   if (!res.ok) {
-    throw new Error(`Citybus API error: ${res.status}`)
+    throw new Error(json?.message || `Citybus API error: ${res.status}`)
   }
 
   return json
@@ -28,16 +22,12 @@ async function getJson(url: string) {
 export async function searchCitybusRoutes(route: string): Promise<RouteChoice[]> {
   const routeJson = await getJson(`${BASE}/route/CTB/${route}`)
 
-  const rawRouteData = routeJson?.data
-  const routeList = Array.isArray(rawRouteData)
-    ? rawRouteData
-    : rawRouteData
-      ? [rawRouteData]
-      : []
+  const raw = routeJson?.data
+  const routeList = Array.isArray(raw) ? raw : raw ? [raw] : []
 
   return routeList.map((item: any) => ({
     route: item.route,
-    bound: item.bound ?? '',
+    bound: item.bound ?? item.dir ?? '',
     serviceType: String(item.service_type ?? '1'),
     destination: item.dest_tc ?? item.dest_en ?? '',
     origin: item.orig_tc ?? item.orig_en ?? ''
@@ -49,6 +39,10 @@ export async function getCitybusStops(
   bound: string,
   serviceType: string
 ): Promise<StopInfo[]> {
+  if (!bound) {
+    throw new Error('Citybus route bound 缺失，無法讀取站點')
+  }
+
   const routeStopUrl = `${BASE}/route-stop/CTB/${route}/${bound}/${serviceType}`
 
   console.log('[CTB route-stop params]', {
@@ -58,31 +52,15 @@ export async function getCitybusStops(
     routeStopUrl
   })
 
-  const [routeStopJson, stopJson] = await Promise.all([
-    getJson(routeStopUrl),
-    getJson(`${BASE}/stop`)
-  ])
-
-  console.log('[CTB route-stop response]', routeStopJson)
-  console.log('[CTB stop response]', stopJson)
-
+  const routeStopJson = await getJson(routeStopUrl)
   const routeStopList = asArray<any>(routeStopJson?.data)
-  const stopList = asArray<any>(stopJson?.data)
 
-  const stopMap = new Map<string, CitybusStopLookup>(
-    stopList.map((stop: any) => [stop.stop, stop])
-  )
-
-  return routeStopList.map((item: any) => {
-    const stop = stopMap.get(item.stop)
-
-    return {
-      stopId: item.stop,
-      sequence: item.seq,
-      nameTc: stop?.name_tc ?? item.stop,
-      nameEn: stop?.name_en ?? item.stop
-    }
-  })
+  return routeStopList.map((item: any, index: number) => ({
+    stopId: item.stop ?? `ctb-${index}`,
+    sequence: item.seq,
+    nameTc: item.name_tc ?? item.stop ?? `站點 ${index + 1}`,
+    nameEn: item.name_en ?? item.stop ?? `Stop ${index + 1}`
+  }))
 }
 
 export async function getCitybusEta(stopId: string, route: string): Promise<EtaItem[]> {
