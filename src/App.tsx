@@ -192,24 +192,25 @@ export default function App() {
               <p className="muted">未搜尋或未找到路線。</p>
             ) : null}
 
-            {routes.map((item, index) => (
-              <button
-                key={`${item.route}-${item.bound}-${item.serviceType}-${index}`}
-                className={`route-card ${
-                  selectedRoute?.route === item.route &&
-                  selectedRoute?.bound === item.bound &&
-                  selectedRoute?.serviceType === item.serviceType
-                    ? 'selected'
-                    : ''
-                }`}
-                onClick={() => void chooseRoute(item)}
-                disabled={loadingStops}
-              >
-                <strong>{item.route}</strong>
-                <span>{item.origin ?? '--'} → {item.destination}</span>
-                <small>方向: {item.bound || '--'} · 特別班次: {item.serviceType}</small>
-              </button>
-            ))}
+            {routes.map((item, index) => {
+              const isSelected =
+                selectedRoute?.route === item.route &&
+                selectedRoute?.bound === item.bound &&
+                selectedRoute?.serviceType === item.serviceType
+
+              return (
+                <button
+                  key={`${item.route}-${item.bound}-${item.serviceType}-${index}`}
+                  className={`route-card ${isSelected ? 'selected' : ''}`}
+                  onClick={() => void chooseRoute(item)}
+                  disabled={loadingStops}
+                >
+                  <strong>{item.route}</strong>
+                  <span>{item.origin || '--'} → {item.destination || '--'}</span>
+                  <small>方向: {item.bound || '--'} · 特別班次: {item.serviceType}</small>
+                </button>
+              )
+            })}
           </div>
         </section>
 
