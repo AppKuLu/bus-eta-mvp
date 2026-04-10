@@ -15,6 +15,7 @@ function asArray<T>(value: unknown): T[] {
 async function getJson(url: string) {
   const res = await fetch(url)
   const json = await res.json()
+
   console.log('[CTB API]', url, json)
 
   if (!res.ok) {
@@ -36,7 +37,7 @@ export async function searchCitybusRoutes(route: string): Promise<RouteChoice[]>
 
   return routeList.map((item: any) => ({
     route: item.route,
-    bound: item.bound,
+    bound: item.bound ?? '',
     serviceType: String(item.service_type ?? '1'),
     destination: item.dest_tc ?? item.dest_en ?? '',
     origin: item.orig_tc ?? item.orig_en ?? ''
@@ -48,10 +49,22 @@ export async function getCitybusStops(
   bound: string,
   serviceType: string
 ): Promise<StopInfo[]> {
+  const routeStopUrl = `${BASE}/route-stop/CTB/${route}/${bound}/${serviceType}`
+
+  console.log('[CTB route-stop params]', {
+    route,
+    bound,
+    serviceType,
+    routeStopUrl
+  })
+
   const [routeStopJson, stopJson] = await Promise.all([
-    getJson(`${BASE}/route-stop/CTB/${route}/${bound}/${serviceType}`),
+    getJson(routeStopUrl),
     getJson(`${BASE}/stop`)
   ])
+
+  console.log('[CTB route-stop response]', routeStopJson)
+  console.log('[CTB stop response]', stopJson)
 
   const routeStopList = asArray<any>(routeStopJson?.data)
   const stopList = asArray<any>(stopJson?.data)
