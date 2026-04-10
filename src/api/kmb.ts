@@ -26,6 +26,7 @@ async function getJson(url: string) {
 }
 
 export async function searchKmbRoutes(route: string): Promise<RouteChoice[]> {
+  // 官方 /route/ endpoint 會回傳全路線清單，這裡用 filter 搵你要的 route。[page:2]
   const json = await getJson(`${BASE}/route/`)
   const routeList = asArray<any>(json?.data)
 
@@ -45,6 +46,7 @@ export async function getKmbStops(
   bound: string,
   serviceType: string
 ): Promise<StopInfo[]> {
+  // KMB route-stop  endpoint: /route-stop/{route}/{direction}/{service_type}[web:6]
   const routeStopUrl = `${BASE}/route-stop/${route}/${bound}/${serviceType}`
 
   console.log('[KMB route-stop params]', {
@@ -86,6 +88,7 @@ export async function getKmbEta(
   route: string,
   serviceType: string
 ): Promise<EtaItem[]> {
+  // KMB ETA endpoint: /eta/{stop_id}/{route}/{service_type}[web:9][web:179]
   const json = await getJson(`${BASE}/eta/${stopId}/${route}/${serviceType}`)
   const etaList = asArray<any>(json?.data)
 
