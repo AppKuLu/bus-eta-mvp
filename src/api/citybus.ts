@@ -26,7 +26,6 @@ async function getJson(url: string) {
 
 export async function searchCitybusRoutes(route: string): Promise<RouteChoice[]> {
   const routeJson = await getJson(`${BASE}/route/CTB/${route}`)
-  const routeStopJson = await getJson(`${BASE}/route-stop/CTB/${route}`)
 
   const rawRouteData = routeJson?.data
   const routeList = Array.isArray(rawRouteData)
@@ -34,14 +33,6 @@ export async function searchCitybusRoutes(route: string): Promise<RouteChoice[]>
     : rawRouteData
       ? [rawRouteData]
       : []
-
-  const routeStopList = asArray<any>(routeStopJson?.data)
-
-  const stopGroups = new Map<string, number>()
-  for (const item of routeStopList) {
-    const key = `${item.bound}-${item.service_type}`
-    stopGroups.set(key, (stopGroups.get(key) ?? 0) + 1)
-  }
 
   return routeList.map((item: any) => ({
     route: item.route,
@@ -57,8 +48,10 @@ export async function getCitybusStops(
   bound: string,
   serviceType: string
 ): Promise<StopInfo[]> {
-  const routeStopJson = await getJson(`${BASE}/route-stop/CTB/${route}/${bound}/${serviceType}`)
-  const stopJson = await getJson(`${BASE}/stop`)
+  const [routeStopJson, stopJson] = await Promise.all([
+    getJson(`${BASE}/route-stop/CTB/${route}/${bound}/${serviceType}`),
+    getJson(`${BASE}/stop`)
+  ])
 
   const routeStopList = asArray<any>(routeStopJson?.data)
   const stopList = asArray<any>(stopJson?.data)
